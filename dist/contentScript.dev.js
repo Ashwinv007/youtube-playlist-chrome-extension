@@ -47,7 +47,7 @@ function checkLastScriptElement() {
 
           if (!currentTimeElement || !durationElement) {
             console.log('Video player not fully loaded, waiting...');
-            setTimeout(checkIfVideoViewed, 1000); // Check again after 1 second
+            setTimeout(checkIfVideoViewed, 1000); // Check again after 1 second.
 
             return;
           }

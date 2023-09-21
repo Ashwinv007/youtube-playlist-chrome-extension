@@ -1,20 +1,58 @@
-// chrome.runtime.onInstalled.addListener(() => {
-//     chrome.action.setBadgeText({
-//       text: 'OFF'
-//     });
-//   });
-    const ytw = '&index';
-    const ytp = 'https://www.youtube.com/playlist?list=';
+// Variable to store timeout ID
+let iconTimeout;
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && tab.url) {
+    clearTimeout(iconTimeout); // Clear any existing timeouts
+
+    // Set a timeout to display the icon after a brief delay
+    iconTimeout = setTimeout(() => {
+      run(tab); 
+    },1500); 
+  }
+});
 
 
-   
+
+chrome.tabs.onActivated.addListener(info => {
+  chrome.tabs.get(info.tabId, run);
+});
+
+let iconTimeout2;
 
 
-    // When the yt load-extension action
-    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-      if (changeInfo.status === 'complete') {
-        console.log('Tab updated:', tab.url); }
-    
+// Add an event listener for onHistoryStateUpdated
+chrome.webNavigation.onHistoryStateUpdated.addListener(function(details) {
+  // Check if the URL or other relevant information has changed
+  if (details.url && details.url.includes("https://*.youtube.com/*")) {
+    clearTimeout(iconTimeout2); // Clear any existing timeouts
+
+
+
+    iconTimeout2 = setTimeout(() => {
+      run(details.url);
+    },1500);
+    console.log("URL changed to: " + details.url);
+  }
+});
+
+
+const processingTabId = {};
+function run(tab) {
+  // Send GSI check message with callback
+  chrome.tabs.sendMessage(tab.id, {
+    type: "GSI_Check",
+  }, () => {
+    console.log('GSI alert sent to contentScript.js');
+
+    // GSI check is complete, proceed with other statements
+    setTimeout(() => {
+      if (processingTabId[tab.id]) return;
+      processingTabId[tab.id] = true;
+
+      const ytw = '&index';
+      const ytp = 'https://www.youtube.com/playlist?list=';
+
       if (tab.url && (tab.url.startsWith(ytp) || tab.url.includes(ytw))) {
         function getPlaylistId(url) {
           const regex = /[&?]list=([^&]+)/;
@@ -28,57 +66,17 @@
         const playlistId = getPlaylistId(tab.url);
         console.log("Here is the playlist ID: " + playlistId);
 
-      chrome.tabs.sendMessage(tabId, {
-        type: "NEW",
-        playlistId: playlistId
-            }).then(console.log('message sent to contentScript.js'));
+        chrome.tabs.sendMessage(tab.id, {
+          type: "NEW",
+          playlistId: playlistId
+        }, () => {
+          console.log('Message sent to contentScript.js');
+        });
+      }
 
      
-                  
-            
-      // // We retrieve the action badge to check if the extension is 'ON' or 'OFF'
-      // const prevState = await chrome.action.getBadgeText({ tabId: tab.id });
-      // // Next state will always be the opposite
-      // const nextState = prevState === 'ON' ? 'OFF' : 'ON';
-  
-      // // Set the action badge to the next state
-      // await chrome.action.setBadgeText({
-      //   tabId: tab.id,
-      //   text: nextState
-      // });
-  
-      // if (nextState === 'ON') {
-      //   // Insert the CSS file when the user turns the extension on
-      //   const queryParameters = tab.url.split("?")[1];
-      //   const urlParameters = new URLSearchParams(queryParameters);
-
-      //   await chrome.scripting.insertCSS({
-      //     files: ['focus-mode.css'],
-      //     target: { tabId: tab.id }
-      //   });
-      // } else if (nextState === 'OFF') {
-      //   // Remove the CSS file when the user turns the extension off
-      //   await chrome.scripting.removeCSS({
-      //     files: ['focus-mode.css'],
-      //     target: { tabId: tab.id }
-      //   });
-      // }
-    }
+      // When all done:
+      delete processingTabId[tab.id];
+    }, 3000); 
   });
-
-
-
-
-
-    // Listen for messages from the content script
-    //  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    //   if (message.action === 'injectCSS') {
-    //     console.log("demo css")
-    //     // Insert CSS into the active tab
-    //     // chrome.scripting.insertCSS({
-    //     //        files: ['focus-mode.css'],
-    //     //        target: tab.id,
-    //     //      });
-        
-    //   }
-    // });
+}
